@@ -1,0 +1,7 @@
+# Requirements for Enhanced Dockerfile Generator
+
+# Optional but highly recommended for accurate Python version detection
+vermin>=1.5.0
+
+# The tool itself has no required dependencies - it works with Python stdlib only
+# However, vermin provides much more accurate version detection than the fallback

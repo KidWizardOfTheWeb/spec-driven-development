@@ -1,0 +1,19 @@
+# Requirements for Dockerfile Database System
+
+# Core dependencies
+fastapi>=0.109.0       # Web framework for REST API
+uvicorn[standard]>=0.27.0  # ASGI server for FastAPI
+pydantic>=2.5.0        # Data validation
+pytz>=2023.3           # Timezone handling
+
+# Optional dependencies
+requests>=2.31.0       # For API client examples (optional)
+
+# For the Dockerfile Generator integration
+# (if using with dockerfile_generator_v2.py)
+vermin>=1.5.0          # Python version detection (optional)
+
+# Development dependencies (optional)
+httpx>=0.26.0          # Async HTTP client for testing
+pytest>=7.4.0          # Testing framework
+pytest-asyncio>=0.21.0 # Async testing support

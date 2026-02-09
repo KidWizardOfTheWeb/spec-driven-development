@@ -1,0 +1,27 @@
+# Testing Requirements for Dockerfile Generator
+# Install with: pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Enhanced testing features
+pytest-xdist>=3.3.0          # Parallel test execution
+pytest-timeout>=2.1.0        # Test timeouts
+pytest-mock>=3.11.0          # Mocking utilities
+pytest-watch>=4.2.0          # Auto-rerun tests on file changes
+
+# Code quality
+pytest-flake8>=1.1.1         # Linting during tests
+pytest-mypy>=0.10.3          # Type checking during tests
+
+# Optional but recommended
+vermin>=1.5.0                # For full Python version detection testing
+hypothesis>=6.82.0           # Property-based testing (optional)
+
+# Coverage reporting
+coverage[toml]>=7.2.0
+
+# Development dependencies (optional)
+black>=23.0.0                # Code formatting
+isort>=5.12.0                # Import sorting

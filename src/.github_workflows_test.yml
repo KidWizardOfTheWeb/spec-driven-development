@@ -1,0 +1,199 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+        pip install vermin  # Optional but recommended
+    
+    - name: Run linting
+      run: |
+        pip install flake8
+        flake8 dockerfile_generator_v2.py --max-line-length=100 --ignore=E501,W503
+    
+    - name: Run type checking (Python 3.9+)
+      if: matrix.python-version != '3.8'
+      run: |
+        pip install mypy
+        mypy dockerfile_generator_v2.py --ignore-missing-imports || true
+    
+    - name: Run tests with coverage
+      run: |
+        pytest -v \
+          --cov=dockerfile_generator_v2 \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-report=html
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Archive coverage report
+      if: matrix.python-version == '3.11'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: htmlcov/
+    
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          .pytest_cache/
+          htmlcov/
+
+  test-without-vermin:
+    name: Test without vermin (fallback mode)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install minimal dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        # Explicitly do NOT install vermin to test fallback
+    
+    - name: Run tests in fallback mode
+      run: |
+        pytest -v -k "not requires_vermin"
+    
+    - name: Verify fallback detection works
+      run: |
+        python dockerfile_generator_v2.py python310_features.py
+        cat Dockerfile | grep "FROM python:3.10"
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements-test.txt
+        pip install vermin
+    
+    - name: Run integration tests
+      run: |
+        pytest -v -m integration
+    
+    - name: Test Dockerfile generation for samples
+      run: |
+        python dockerfile_generator_v2.py sample_flask_app.py -o Dockerfile.flask
+        python dockerfile_generator_v2.py python310_features.py -o Dockerfile.py310
+        python dockerfile_generator_v2.py python38_features.py -o Dockerfile.py38
+        ls -la Dockerfile.*
+    
+    - name: Verify generated Dockerfiles
+      run: |
+        grep "FROM python:" Dockerfile.flask
+        grep "EXPOSE 5000" Dockerfile.flask
+        grep "FROM python:3.10" Dockerfile.py310
+        grep "FROM python:3.8" Dockerfile.py38
+
+  docker-build-test:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements-test.txt
+    
+    - name: Generate Dockerfile for sample app
+      run: |
+        python dockerfile_generator_v2.py sample_flask_app.py
+    
+    - name: Build Docker image
+      run: |
+        docker build -t test-flask-app .
+    
+    - name: Verify Docker image
+      run: |
+        docker images | grep test-flask-app
+        docker inspect test-flask-app
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install quality tools
+      run: |
+        pip install black isort flake8 pylint
+    
+    - name: Check code formatting with black
+      run: |
+        black --check dockerfile_generator_v2.py || true
+    
+    - name: Check import sorting
+      run: |
+        isort --check-only dockerfile_generator_v2.py || true
+    
+    - name: Run pylint
+      run: |
+        pylint dockerfile_generator_v2.py --disable=C,R || true
